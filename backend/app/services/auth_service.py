@@ -42,7 +42,9 @@ class AuthService:
 
         if not user or not verify_password(data.password, user.password_hash):
             raise AuthError("Invalid email or password")
-
+        if not user.email:
+            raise AuthError("type proper email")
+        
         if not user.is_active:
             raise AuthError("Account is deactivated")
 

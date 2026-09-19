@@ -9,7 +9,6 @@ def generate_qr_token() -> str:
     """Generate a high-entropy secure QR token."""
     return secrets.token_urlsafe(32)
 
-
 def generate_qr_code_image(token: str, booking_ref: str) -> bytes:
     """Generate PNG bytes of a QR code containing token and booking_ref."""
     qr_data = json.dumps({"token": token, "ref": booking_ref})
