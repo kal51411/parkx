@@ -5,9 +5,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy import text, select
 
 from app.core.config import settings
-from app.core.database import engine
+from app.core.database import engine, AsyncSessionLocal
 from app.core.redis_client import get_redis, close_redis
 from app.core.exceptions import (
     ParkXException, parkx_exception_handler,
@@ -30,7 +31,32 @@ logger = structlog.get_logger(__name__)
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("parkx_starting", environment=settings.ENVIRONMENT)
-    await get_redis()  # Warm up Redis connection
+    try:
+        await get_redis()  # Warm up Redis connection
+    except Exception as e:
+        logger.warning("redis_warmup_warning", error=str(e))
+
+    # Auto-ensure PostGIS extensions, tables, and demo seed data
+    try:
+        from app.models.base import Base
+        import app.models  # load all models
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
+            await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'))
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("database_tables_ensured")
+
+        # Check if database has users, otherwise seed demo spots
+        from app.models.user import User
+        async with AsyncSessionLocal() as session:
+            check_res = await session.execute(select(User).limit(1))
+            if not check_res.scalar_one_or_none():
+                logger.info("seeding_initial_mumbai_parking_data")
+                from app.core.seed_data import run_auto_seed
+                await run_auto_seed(session)
+    except Exception as e:
+        logger.error("startup_db_init_failed", error=str(e))
+
     yield
     # Shutdown
     await close_redis()
@@ -47,10 +73,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# CORS: allow Vercel production, preview deployments, custom domains, and local dev
+cors_allowed = list(set(settings.cors_origins_list + [
+    "https://parkx-pink.vercel.app",
+    "https://parkx.vercel.app",
+    "http://localhost:3000",
+]))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=cors_allowed,
+    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -103,8 +136,6 @@ async def ready():
     redis_ok = False
 
     try:
-        from sqlalchemy import text
-        from app.core.database import AsyncSessionLocal
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
         db_ok = True

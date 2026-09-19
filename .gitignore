@@ -19,3 +19,5 @@ Thumbs.db
 htmlcov/
 .coverage
 alembic/versions/*.pyc
+.vercel
+.env*

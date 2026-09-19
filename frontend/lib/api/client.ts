@@ -5,7 +5,7 @@ import { useAuthStore } from "@/lib/store/authStore";
 let currentApiBase =
   (typeof window !== "undefined" && localStorage.getItem("parkx_api_url")) ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8000";
+  "https://parkx-production.up.railway.app";
 
 export const getApiBase = () => currentApiBase;
 export const setApiBase = (url: string) => {
