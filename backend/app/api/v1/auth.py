@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter
 from app.api.deps import DB
 from app.schemas.auth import RegisterRequest, LoginRequest, RefreshRequest, TokenResponse, LoginResponse
@@ -9,6 +10,11 @@ router = APIRouter()
 @router.post("/register", response_model=LoginResponse, status_code=201)
 async def register(data: RegisterRequest, db: DB):
     user, access_token, refresh_token = await AuthService.register(db, data)
+    created_at_val = (
+        user.created_at.isoformat()
+        if getattr(user, "created_at", None)
+        else datetime.now(timezone.utc).isoformat()
+    )
     user_out = {
         "id": str(user.id),
         "email": user.email,
@@ -18,7 +24,7 @@ async def register(data: RegisterRequest, db: DB):
         "is_active": user.is_active,
         "is_verified": user.is_verified,
         "avatar_url": user.avatar_url,
-        "created_at": user.created_at.isoformat(),
+        "created_at": created_at_val,
     }
     return LoginResponse(access_token=access_token, refresh_token=refresh_token, user=user_out)
 
@@ -26,6 +32,11 @@ async def register(data: RegisterRequest, db: DB):
 @router.post("/login", response_model=LoginResponse)
 async def login(data: LoginRequest, db: DB):
     user, access_token, refresh_token = await AuthService.login(db, data)
+    created_at_val = (
+        user.created_at.isoformat()
+        if getattr(user, "created_at", None)
+        else datetime.now(timezone.utc).isoformat()
+    )
     user_out = {
         "id": str(user.id),
         "email": user.email,
@@ -35,7 +46,7 @@ async def login(data: LoginRequest, db: DB):
         "is_active": user.is_active,
         "is_verified": user.is_verified,
         "avatar_url": user.avatar_url,
-        "created_at": user.created_at.isoformat(),
+        "created_at": created_at_val,
     }
     return LoginResponse(access_token=access_token, refresh_token=refresh_token, user=user_out)
 

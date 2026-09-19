@@ -150,12 +150,6 @@ async def run_auto_seed(db: AsyncSession):
             db.add(loc)
             await db.flush()
 
-            # Set PostGIS point
-            await db.execute(
-                text("UPDATE parking_locations SET geom = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) WHERE id = :id"),
-                {"lng": s["lng"], "lat": s["lat"], "id": str(loc.id)},
-            )
-
             # Add spaces
             for i in range(1, 6):
                 sp = ParkingSpace(

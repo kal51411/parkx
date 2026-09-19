@@ -36,13 +36,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("redis_warmup_warning", error=str(e))
 
-    # Auto-ensure PostGIS extensions, tables, and demo seed data
+    # Auto-ensure extensions, tables, and demo seed data
     try:
         from app.models.base import Base
         import app.models  # load all models
         async with engine.begin() as conn:
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
-            await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'))
+            try:
+                await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'))
+            except Exception as e:
+                logger.warning("uuid_ossp_warning", error=str(e))
             await conn.run_sync(Base.metadata.create_all)
         logger.info("database_tables_ensured")
 
@@ -117,6 +119,21 @@ async def logging_middleware(request: Request, call_next):
 
 # Exception handlers
 from fastapi import HTTPException
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logger.exception("unhandled_server_exception", exc_info=exc, path=request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": str(exc) or "Internal server error occurred",
+            }
+        },
+    )
+
 app.add_exception_handler(ParkXException, parkx_exception_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
@@ -134,11 +151,19 @@ async def health():
 async def ready():
     db_ok = False
     redis_ok = False
+    tables: list[str] = []
 
     try:
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
-        db_ok = True
+            db_ok = True
+            try:
+                res = await session.execute(
+                    text("SELECT table_name FROM information_schema.tables WHERE table_schema='public'")
+                )
+                tables = [r[0] for r in res.fetchall()]
+            except Exception:
+                pass
     except Exception as e:
         logger.error("db_health_check_failed", error=str(e))
 
@@ -147,11 +172,16 @@ async def ready():
         await redis.ping()
         redis_ok = True
     except Exception as e:
-        logger.error("redis_health_check_failed", error=str(e))
+        logger.warning("redis_health_check_warning", error=str(e))
+        redis_ok = False
 
-    status_code = 200 if (db_ok and redis_ok) else 503
-    from fastapi.responses import JSONResponse
+    status_code = 200 if db_ok else 503
     return JSONResponse(
         status_code=status_code,
-        content={"status": "ready" if (db_ok and redis_ok) else "not_ready", "db": db_ok, "redis": redis_ok},
+        content={
+            "status": "ready" if db_ok else "not_ready",
+            "db": db_ok,
+            "redis": redis_ok,
+            "tables": tables,
+        },
     )

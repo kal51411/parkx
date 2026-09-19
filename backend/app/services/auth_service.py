@@ -21,13 +21,14 @@ class AuthService:
 
         user = User(
             email=data.email,
-            phone=data.phone,
-            full_name=data.full_name,
+            phone=data.phone.strip() if data.phone and data.phone.strip() else None,
+            full_name=data.full_name.strip(),
             password_hash=hash_password(data.password),
             role=data.role,
         )
         db.add(user)
         await db.flush()  # Get the ID without committing
+        await db.refresh(user)  # Populate generated columns
 
         token_data = {"sub": str(user.id), "role": user.role.value}
         access_token = create_access_token(token_data)

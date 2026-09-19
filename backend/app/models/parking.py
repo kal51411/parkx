@@ -4,7 +4,6 @@ from typing import Optional, List
 from sqlalchemy import String, Boolean, Float, Integer, Text, Numeric, Enum as SAEnum, ForeignKey, ARRAY, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from geoalchemy2 import Geometry
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
 from app.models.vehicle import VehicleType
@@ -43,7 +42,7 @@ class SpaceStatus(str, enum.Enum):
 class ParkingLocation(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "parking_locations"
     __table_args__ = (
-        Index("idx_parking_geom", "geom", postgresql_using="gist"),
+        Index("idx_parking_lat_lng", "latitude", "longitude"),
     )
 
     owner_id: Mapped[uuid.UUID] = mapped_column(
@@ -58,9 +57,6 @@ class ParkingLocation(Base, UUIDMixin, TimestampMixin):
     city: Mapped[str] = mapped_column(String(100), nullable=False, default="Mumbai")
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
-    geom: Mapped[Optional[object]] = mapped_column(
-        Geometry("POINT", srid=4326), nullable=True
-    )
     parking_type: Mapped[ParkingType] = mapped_column(
         SAEnum(ParkingType, name="parking_type"), nullable=False
     )

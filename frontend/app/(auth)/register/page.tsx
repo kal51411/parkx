@@ -26,7 +26,11 @@ export default function RegisterPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const response = await apiClient.post("/auth/register", formData);
+      const payload = {
+        ...formData,
+        phone: formData.phone.trim() ? formData.phone.trim() : undefined,
+      };
+      const response = await apiClient.post("/auth/register", payload);
       const { user, access_token, refresh_token } = response.data;
       setAuth(user, access_token, refresh_token);
       toast.success("Account created successfully!");

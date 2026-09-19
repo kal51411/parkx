@@ -35,15 +35,8 @@ class ParkingService:
             base_hourly_price=float(data.base_hourly_price),
             base_daily_price=float(data.base_daily_price) if data.base_daily_price else None,
         )
-        # Set PostGIS geometry
         db.add(location)
         await db.flush()
-
-        # Update geometry using PostGIS
-        await db.execute(
-            text("UPDATE parking_locations SET geom = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326) WHERE id = :id"),
-            {"lng": data.longitude, "lat": data.latitude, "id": str(location.id)},
-        )
         return location
 
     @staticmethod
@@ -78,11 +71,19 @@ class ParkingService:
         verified_only: bool = False,
         limit: int = 50,
     ) -> List[dict]:
-        """Geospatial parking search using PostGIS ST_DWithin."""
+        """Geospatial parking search using robust Haversine distance in standard SQL."""
+
+        haversine_sql = f"""(6371000.0 * acos(
+            LEAST(1.0, GREATEST(-1.0,
+                sin(radians({lat})) * sin(radians(pl.latitude)) +
+                cos(radians({lat})) * cos(radians(pl.latitude)) *
+                cos(radians(pl.longitude) - radians({lng}))
+            ))
+        ))"""
 
         conditions = [
             "pl.is_active = true",
-            f"ST_DWithin(pl.geom::geography, ST_SetSRID(ST_MakePoint({lng}, {lat}), 4326)::geography, {radius_km * 1000})",
+            f"{haversine_sql} <= {radius_km * 1000.0}",
         ]
 
         if verified_only:
@@ -121,7 +122,7 @@ class ParkingService:
             conditions.append(f"(pl.amenities->>'ev_charging')::boolean = {str(ev_charging).lower()}")
 
         where_clause = " AND ".join(conditions)
-        radius_m = radius_km * 1000
+        radius_m = radius_km * 1000.0
 
         query = text(f"""
             SELECT
@@ -140,10 +141,10 @@ class ParkingService:
                 pl.average_rating,
                 pl.total_reviews,
                 pl.is_demo,
-                ST_Distance(pl.geom::geography, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography) AS distance_m,
+                {haversine_sql} AS distance_m,
                 (SELECT pi.url FROM parking_images pi WHERE pi.location_id = pl.id AND pi.is_primary = true LIMIT 1) AS primary_image_url,
                 (
-                    0.4 * (1.0 - LEAST(ST_Distance(pl.geom::geography, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography) / :radius_m, 1.0)) +
+                    0.4 * (1.0 - LEAST({haversine_sql} / :radius_m, 1.0)) +
                     0.2 * (1.0 - LEAST(pl.base_hourly_price / 200.0, 1.0)) +
                     0.2 * (pl.average_rating / 5.0) +
                     0.2 * ({avail_subquery}::float / GREATEST(pl.total_spaces, 1))
