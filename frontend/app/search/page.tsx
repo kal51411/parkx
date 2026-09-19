@@ -50,8 +50,8 @@ export default function SearchPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
 
-  const [locations, setLocations] = useState<ParkingLocation[]>(MUMBAI_DEMO_LOCATIONS);
-  const [selectedLocation, setSelectedLocation] = useState<ParkingLocation | null>(MUMBAI_DEMO_LOCATIONS[0]);
+  const [locations, setLocations] = useState<ParkingLocation[]>(MUMBAI_DEMO_LOCATIONS as any);
+  const [selectedLocation, setSelectedLocation] = useState<ParkingLocation | null>(MUMBAI_DEMO_LOCATIONS[0] as any);
   const [isLoading, setIsLoading] = useState(false);
 
   // Search parameters

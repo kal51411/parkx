@@ -38,8 +38,10 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+import { ParkingLocation } from "@/lib/api/types";
+
 // 15+ Realistic Mumbai Parking spots for fallback demo data
-export const MUMBAI_DEMO_LOCATIONS = [
+export const MUMBAI_DEMO_LOCATIONS: ParkingLocation[] = [
   {
     id: "loc-bkc-corp",
     name: "BKC Diamond Bourse & Corporate Parking",
