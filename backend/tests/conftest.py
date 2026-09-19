@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from unittest.mock import AsyncMock, MagicMock
 
 import os
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://parkx:password@localhost:5432/parkx_test")
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://parkx:password@localhost:5432/parkx_test")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/15")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
 os.environ.setdefault("PAYMENT_PROVIDER", "mock")

@@ -30,7 +30,7 @@ from app.models.security_staff import SecurityStaff
 target_metadata = Base.metadata
 
 def get_url():
-    return settings.DATABASE_URL.replace("+asyncpg", "")
+    return settings.DATABASE_URL.replace("+asyncpg", "").replace("+psycopg", "")
 
 
 def run_migrations_offline() -> None:
