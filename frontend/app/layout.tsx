@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { Navbar } from "@/components/Navbar";
+import { CustomCursor } from "@/components/CustomCursor";
 
 export const metadata: Metadata = {
-  title: "ParkX — Real-Time Mumbai Parking Marketplace",
+  title: "PARKX — Mumbai's Urban Parking Network",
   description:
-    "Discover, reserve, and pay for verified parking spaces in real-time across Mumbai.",
+    "Real-time Mumbai parking infrastructure connecting drivers, society parking bays, and gate security with atomic lock hold and sub-15s QR clearance.",
 };
 
 export default function RootLayout({
@@ -15,9 +16,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 antialiased selection:bg-blue-600 selection:text-white">
+    <html lang="en" className="dark scroll-smooth">
+      <body className="min-h-screen flex flex-col bg-parkx-black text-slate-100 antialiased selection:bg-parkx-pink selection:text-white font-sans">
         <Providers>
+          <CustomCursor />
           <Navbar />
           <main className="flex-1 flex flex-col">{children}</main>
         </Providers>
